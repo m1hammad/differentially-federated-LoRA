@@ -1,9 +1,14 @@
 import torch
 from collections import OrderedDict
-import flwr as fl
+# import flwr as fl
 from flwr import client
 from device import move_to_device
 from differential_privacy import differential_privacy
+import logging
+from tqdm import tqdm
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 class FlowerClient(client.NumPyClient):
     def __init__(self, model, trainloader, testloader, device, dp_enabled=False, dp_params=None):
@@ -15,7 +20,7 @@ class FlowerClient(client.NumPyClient):
         self.dp_params = dp_params if dp_params else {}
         self.privacy_engine = None
 
-    def get_parameters(self):
+    def get_parameters(self, config=None):
         return [val.cpu().numpy() for _, val in self.model.state_dict().items()]    # The get_parameters function lets the server get the client's parameters
     
     def set_parameters(self, parameters):
@@ -35,11 +40,12 @@ class FlowerClient(client.NumPyClient):
         loss, accuracy = self._test()
         return float(loss), len(self.testloader.dataset), {"accuracy": float(accuracy)}
     
-    def _train(self, epochs=1):
+    def _train(self, epochs=5):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=1e-5)             # Initializes the AdamW optimizer, which is commonly used for training transformers.
         criterion = torch.nn.CrossEntropyLoss()                                     # Initializes the CrossEntropyLoss function, commonly used for classification tasks
 
         if self.dp_enabled:
+            print('Running with Differential Privacy...')
             self.model, optimizer, self.trainloader = differential_privacy(         # integrate differential privacy
                 model=self.model,
                 optimizer=optimizer,
@@ -49,6 +55,7 @@ class FlowerClient(client.NumPyClient):
 
         self.model.train()
         for epoch in range(epochs):
+            logging.info(f"Epoch {epoch + 1}/{epochs}")
             for batch in self.trainloader:
                 optimizer.zero_grad()                                               # Reset gradient from previous batch
 
@@ -84,6 +91,6 @@ class FlowerClient(client.NumPyClient):
                 correct += (preds == labels).sum().item()
                 total += labels.size(0)
 
-        accuracy = correct / total
-        return total_loss / len(self.testloader), accuracy
+        accuracy = 0.0 if total == 0 else correct / total
+        return total_loss / (len(self.testloader) if len(self.testloader) > 0 else 1), accuracy
 
