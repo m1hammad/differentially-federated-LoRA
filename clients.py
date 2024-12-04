@@ -1,9 +1,9 @@
-from flwr.client import NumPyClient, ClientApp
+from flwr.client import NumPyClient
 # from flwr.client.mod import fixedclipping_mod
 import torch
 from collections import OrderedDict
 from device import move_to_device
-# from differential_privacy import differential_privacy
+from differential_privacy import differential_privacy
 import logging
 # from tqdm import tqdm
 
@@ -11,13 +11,13 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 class FlowerClient(NumPyClient):
-    def __init__(self, model, trainloader, testloader, device, dp_enabled=False):
+    def __init__(self, model, trainloader, testloader, device, dp_enabled=False, dp_params=None):
         self.model = model
         self.trainloader = trainloader
         self.testloader = testloader
         self.device = device
         self.dp_enabled = dp_enabled
-        # self.dp_params = dp_params if dp_params else {}
+        self.dp_params = dp_params if dp_params else {}
         # self.privacy_engine = None
 
     def get_parameters(self, config=None):
@@ -30,28 +30,29 @@ class FlowerClient(NumPyClient):
 
     def set_parameters(self, parameters):
         params_dict = zip(self.model.state_dict().keys(), parameters)
-        for key, value in params_dict:
-            if key not in self.model.state_dict():
-                logging.warning(f"Unexpected key: {key}")
+        # for key, value in params_dict:
+        #     if key not in self.model.state_dict():
+        #         logging.warning(f"Unexpected key: {key}")
         state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
-        missing, unexpected = self.model.load_state_dict(state_dict, strict=False)
-        if missing:
-            logging.error(f"Missing keys: {missing}")
-        if unexpected:
-            logging.error(f"Unexpected keys: {unexpected}")
+        self.model.load_state_dict(state_dict, strict=True)
+        # missing, unexpected = self.model.load_state_dict(state_dict, strict=True)
+        # if missing:
+        #     logging.warning(f"clients.py, set_parameters function Missing keys: {missing}")
+        # if unexpected:
+        #     logging.warning(f"clients.py, set_parameters function Unexpected keys: {unexpected}")
 
     def fit(self, parameters, config): 
         logging.info("Client fit function called")                                             # the fit function trains the model locally for the client
         try:
-            self.set_parameters(parameters)
-            logging.info("Parameters set successfully")
+            # self.set_parameters(parameters)
+            # logging.info("clients.py, fit: Parameters set successfully")
             logging.info("Training Started...")
-            self.model.train()  # Ensure model is in training mode
-            logging.info("Model set to training mode")
+            # self.model.train()  # Ensure model is in training mode
+            # logging.info("clients.py, fit: Model set to training mode")
             self._train()
             logging.info("Training Finished...")
         except Exception as e:
-            logging.error(f"Error during fit: {e}")
+            logging.error(f"clients.py, Error during fit: {e}")
             raise
         logging.info("Fit completed successfully")
         # if self.dp_enabled:
@@ -69,15 +70,15 @@ class FlowerClient(NumPyClient):
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=1e-5)             # Initializes the AdamW optimizer, which is commonly used for training transformers.
         criterion = torch.nn.CrossEntropyLoss()                                     # Initializes the CrossEntropyLoss function, commonly used for classification tasks
 
-        # if self.dp_enabled:
-        #     logging.info("Applying differential privacy...")
-        #     logging.info(f"DP parameters: {self.dp_params}")
-        #     self.model, optimizer, self.trainloader = differential_privacy(         # integrate differential privacy
-        #         model=self.model,
-        #         optimizer=optimizer,
-        #         data_loader=self.trainloader,
-        #         **self.dp_params                                                    # Additional params like noise multiplier, max gradient norm
-        #     )
+        if self.dp_enabled:
+            logging.info("Applying differential privacy...")
+            logging.info(f"DP parameters: {self.dp_params}")
+            self.model, optimizer, self.trainloader = differential_privacy(         # integrate differential privacy
+                model=self.model,
+                optimizer=optimizer,
+                data_loader=self.trainloader,
+                **self.dp_params                                                    # Additional params like noise multiplier, max gradient norm
+            )
 
         self.model.train()
         for epoch in range(epochs):

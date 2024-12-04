@@ -1,6 +1,9 @@
 import torch
 import logging
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
 def get_device():
     if torch.cuda.is_available():
         logging.info("Using CUDA")
