@@ -7,13 +7,6 @@ import signal
 import subprocess
 import time
 
-# from flwr.server.strategy import (FedAvg,
-#                                   DifferentialPrivacyServerSideFixedClipping,
-#                                   DifferentialPrivacyServerSideAdaptiveClipping,
-#                                 #   DifferentialPrivacyClientSideFixedClipping
-#                                   )
-
-
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -38,8 +31,8 @@ def start_fl_server():
     try: 
         logging.info("Starting Flower server...")
         fl.server.start_server(
-            server_address="localhost:8080",
-            config=fl.server.ServerConfig(num_rounds=10, round_timeout=180),
+            server_address="localhost:9094",
+            config=fl.server.ServerConfig(num_rounds=10, round_timeout=600),
             strategy=strategy,   # uncomment if you want to work with opacus
             # strategy=dp_strategy,
         )

@@ -1,4 +1,4 @@
-from transformers import AutoModelForSequenceClassification
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from peft import get_peft_model, LoraConfig, TaskType
 from device import move_to_device
 import logging
@@ -7,9 +7,14 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 
-def create_lora_model(model_class=AutoModelForSequenceClassification, transformer_model='distilbert-base-uncased', rank=16, num_labels=2, target_modules=["query", "key", "value", "output"]):
+def create_lora_model(model_class=AutoModelForSequenceClassification, transformer_model='distilbert-base-uncased', rank=16, num_labels=2, target_modules=["query", "key", "value", "output"], tokenizer=None):
     try:
         model = model_class.from_pretrained(transformer_model, num_labels=num_labels)
+        
+        # Resize token embeddings if the model is GPT2 and tokenizer is provided
+        if transformer_model.lower() == "gpt2" and tokenizer is not None:
+            model.resize_token_embeddings(len(tokenizer))
+        
         peft_config = LoraConfig(
             task_type=TaskType.SEQ_CLS,
             inference_mode=False,
