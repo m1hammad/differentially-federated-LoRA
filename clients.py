@@ -1,16 +1,16 @@
+from flwr.client import NumPyClient
+# from flwr.client.mod import fixedclipping_mod
 import torch
 from collections import OrderedDict
-# import flwr as fl
-from flwr import client
 from device import move_to_device
 from differential_privacy import differential_privacy
 import logging
-from tqdm import tqdm
+# from tqdm import tqdm
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
-class FlowerClient(client.NumPyClient):
+class FlowerClient(NumPyClient):
     def __init__(self, model, trainloader, testloader, device, dp_enabled=False, dp_params=None):
         self.model = model
         self.trainloader = trainloader
@@ -18,26 +18,52 @@ class FlowerClient(client.NumPyClient):
         self.device = device
         self.dp_enabled = dp_enabled
         self.dp_params = dp_params if dp_params else {}
-        self.privacy_engine = None
+        # self.privacy_engine = None
 
     def get_parameters(self, config=None):
         return [val.cpu().numpy() for _, val in self.model.state_dict().items()]    # The get_parameters function lets the server get the client's parameters
     
+    # def set_parameters(self, parameters):
+    #     params_dict = zip(self.model.state_dict().keys(), parameters)               # set_parameters function allows the server to send its parameters to the client
+    #     state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
+    #     self.model.load_state_dict(state_dict, strict=True)
+
     def set_parameters(self, parameters):
-        params_dict = zip(self.model.state_dict().keys(), parameters)               # set_parameters function allows the server to send its parameters to the client
+        params_dict = zip(self.model.state_dict().keys(), parameters)
+        # for key, value in params_dict:
+        #     if key not in self.model.state_dict():
+        #         logging.warning(f"Unexpected key: {key}")
         state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
         self.model.load_state_dict(state_dict, strict=True)
+        # missing, unexpected = self.model.load_state_dict(state_dict, strict=True)
+        # if missing:
+        #     logging.warning(f"clients.py, set_parameters function Missing keys: {missing}")
+        # if unexpected:
+        #     logging.warning(f"clients.py, set_parameters function Unexpected keys: {unexpected}")
 
-    def fit(self, parameters, config):                                              # the fit function trains the model locally for the client
-        self.set_parameters(parameters)
-        print("Training Started...")
-        self._train()
-        print("Training Finished.")
+    def fit(self, parameters, config): 
+        logging.info("Client fit function called")                                             # the fit function trains the model locally for the client
+        try:
+            # self.set_parameters(parameters)
+            # logging.info("clients.py, fit: Parameters set successfully")
+            logging.info("Training Started...")
+            # self.model.train()  # Ensure model is in training mode
+            # logging.info("clients.py, fit: Model set to training mode")
+            self._train()
+            logging.info("Training Finished...")
+        except Exception as e:
+            logging.error(f"clients.py, Error during fit: {e}")
+            raise
+        logging.info("Fit completed successfully")
+        # if self.dp_enabled:
+        #     with mod_context([fixedclipping_mod]):
+        #         parameters = self.get_parameters()
         return self.get_parameters(), len(self.trainloader.dataset), {}
     
     def evaluate(self, parameters, config):                                         #  the evaluate function tests the model locally and returns the relevant metrics
         self.set_parameters(parameters)
         loss, accuracy = self._test()
+        logging.info(f"Evaluation completed. Loss: {loss}, Accuracy: {accuracy}")
         return float(loss), len(self.testloader.dataset), {"accuracy": float(accuracy)}
     
     def _train(self, epochs=5):
@@ -45,7 +71,8 @@ class FlowerClient(client.NumPyClient):
         criterion = torch.nn.CrossEntropyLoss()                                     # Initializes the CrossEntropyLoss function, commonly used for classification tasks
 
         if self.dp_enabled:
-            print('Running with Differential Privacy...')
+            logging.info("Applying differential privacy...")
+            logging.info(f"DP parameters: {self.dp_params}")
             self.model, optimizer, self.trainloader = differential_privacy(         # integrate differential privacy
                 model=self.model,
                 optimizer=optimizer,
@@ -90,7 +117,5 @@ class FlowerClient(client.NumPyClient):
                 preds = outputs.logits.argmax(dim=1)
                 correct += (preds == labels).sum().item()
                 total += labels.size(0)
-
-        accuracy = 0.0 if total == 0 else correct / total
-        return total_loss / (len(self.testloader) if len(self.testloader) > 0 else 1), accuracy
+        return total_loss / len(self.testloader), correct / total if total > 0 else 0
 
