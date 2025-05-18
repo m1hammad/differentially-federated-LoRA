@@ -8,7 +8,7 @@ A privacy-preserving federated learning framework that integrates Low‑Rank Ada
 
 * **LoRA Fine‑Tuning**: Efficiently adapt large transformer models with low‑rank adapters.
 * **Federated Learning**: Distribute training across multiple clients without sharing raw data (FedAvg).
-* **Differential Privacy**: Guarantee \$(arepsilon, \delta)\$‑DP by adding Gaussian noise and clipping gradients.
+* **Differential Privacy**: Guarantee \$(\varepsilon, \delta)\$‑DP by adding Gaussian noise and clipping gradients.
 * **Modular Design**: Plug-and-play modules for device management, data loading, model adaptation, privacy, and federated orchestration.
 * **End‑to‑End Pipeline**: Single notebook (`main.ipynb`) to run experiments, collect metrics, and visualize results.
 
@@ -77,7 +77,7 @@ flower-supernode --insecure --superlink="localhost:9092" --clientappio-api-addre
   * **LoRA + Federated Learning + Differential Privacy**
 * Select transformer models and LoRA target modules.
 * Execute cells to start server & spawn clients (or run local training).
-* Collect metrics and generate plots (Figures 1–15 as in the report).
+* Collect metrics and generate plots.
 
 ---
 
@@ -133,7 +133,7 @@ Supported metrics (logged in `results_2.csv` and visualized):
 * **Training Time**
 * **Communication Overhead** (implicit via Flower logs)
 
-Refer to the report’s Figures 1–15 for detailed comparisons across scenarios and models.
+All these results should be visible if you go to the `main.ipynb` file.
 
 ---
 
@@ -149,7 +149,7 @@ Refer to the report’s Figures 1–15 for detailed comparisons across scenario
 
 ## 📄 License
 
-This project is provided under the MIT License. See [LICENSE](LICENSE) for details.
+This project is provided under the [MIT License](LICENSE). See the [MIT License text](https://opensource.org/licenses/MIT) for details.
 
 ---
 
